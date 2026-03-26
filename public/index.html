@@ -165,28 +165,25 @@ function sendCmd(cmd) {
 // ================= PLACE NAME =================
 async function getPlaceName(lat, lon) {
     try {
-        const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`
-        );
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
         const data = await res.json();
 
-        // extract fields for more precise address
         const addr = data.address || {};
         const road = addr.road || "";
         const house = addr.house_number || "";
-        const suburb = addr.suburb || "";
+        const suburb = addr.suburb || addr.neighbourhood || "";
         const city = addr.city || addr.town || addr.village || "";
         const state = addr.state || "";
         const postcode = addr.postcode || "";
         const country = addr.country || "";
 
-        const preciseAddress = `${house} ${road}, ${suburb}, ${city}, ${state} ${postcode}, ${country}`.replace(/(^[ ,]+)|([ ,]+$)/g, "");
+        const preciseAddress = `${house} ${road}, ${suburb}, ${city}, ${state} ${postcode}, ${country}`
+            .replace(/(^[ ,]+)|([ ,]+$)/g, ""); // clean commas
 
-        document.getElementById("place").innerText =
-            "📍 " + (preciseAddress || "Unknown location");
+        document.getElementById("place").innerText = "📍 " + (preciseAddress || "Unknown location");
 
     } catch (err) {
-        console.log("Geocode error", err);
+        console.log("Geocode error:", err);
     }
 }
 
