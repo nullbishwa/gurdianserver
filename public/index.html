@@ -170,11 +170,23 @@ async function getPlaceName(lat, lon) {
         );
         const data = await res.json();
 
-        document.getElementById("place").innerText =
-            "📍 " + (data.display_name || "Unknown location");
+        // extract fields for more precise address
+        const addr = data.address || {};
+        const road = addr.road || "";
+        const house = addr.house_number || "";
+        const suburb = addr.suburb || "";
+        const city = addr.city || addr.town || addr.village || "";
+        const state = addr.state || "";
+        const postcode = addr.postcode || "";
+        const country = addr.country || "";
 
-    } catch {
-        console.log("Geocode error");
+        const preciseAddress = `${house} ${road}, ${suburb}, ${city}, ${state} ${postcode}, ${country}`.replace(/(^[ ,]+)|([ ,]+$)/g, "");
+
+        document.getElementById("place").innerText =
+            "📍 " + (preciseAddress || "Unknown location");
+
+    } catch (err) {
+        console.log("Geocode error", err);
     }
 }
 
