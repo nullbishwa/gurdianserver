@@ -182,9 +182,7 @@ setInterval(() => {
 // =========================
 // ❤️ HEALTH CHECK
 // =========================
-app.get("/ping", (req, res) => {
-  res.send("alive");
-});
+
 
 // =========================
 // 📊 STATUS API
